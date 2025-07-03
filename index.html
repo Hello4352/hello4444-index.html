@@ -87,24 +87,22 @@
     function createCell(seatIndex, value) {
       const div = document.createElement("div");
       div.className = "cell";
+      div.textContent = value;
       div.dataset.seatIndex = seatIndex;
 
       if (seatStates[seatIndex] === "X") {
         div.textContent = "×";
         div.classList.add("clicked");
-      } else {
-        div.textContent = value;
       }
 
       div.addEventListener("click", () => {
         const idx = parseInt(div.dataset.seatIndex);
         if (seatStates[idx] === "X") {
           seatStates[idx] = null;
+          div.textContent = value;
           div.classList.remove("clicked");
-          div.textContent = div.dataset.originalValue || "";
         } else {
           seatStates[idx] = "X";
-          div.dataset.originalValue = div.textContent;
           div.textContent = "×";
           div.classList.add("clicked");
         }
@@ -123,8 +121,6 @@
       const center = document.getElementById("centerSection");
       const right = document.getElementById("rightSection");
       const unplacedBox = document.getElementById("unplaced");
-
-      // 초기화
       left.innerHTML = center.innerHTML = right.innerHTML = "";
       unplacedBox.style.display = "none";
       unplacedBox.innerHTML = "";
@@ -134,40 +130,33 @@
         return;
       }
 
-      // 사용할 번호 리스트에서 제외번호 제거
-      const allNumbers = [];
+      // 전체 번호 생성 후 셔플
+      let allNumbers = [];
       for (let i = start; i <= end; i++) {
-        if (!exclude.includes(i)) {
-          allNumbers.push(i);
-        }
+        allNumbers.push(i);
       }
-
       shuffle(allNumbers);
 
-      // 사용할 수 있는 좌석 인덱스 가져오기 (X 표시 제외)
-      const availableSeatIndexes = [];
+      // 제외된 번호는 빈칸으로 바꾸기
+      const values = allNumbers.map(n => exclude.includes(n) ? "" : n);
+
+      // X 표시된 좌석은 유지
+      const seatValues = Array(TOTAL_SEATS).fill("");
+      let valueIndex = 0;
       for (let i = 0; i < TOTAL_SEATS; i++) {
-        if (seatStates[i] !== "X") {
-          availableSeatIndexes.push(i);
+        if (seatStates[i] !== "X" && valueIndex < values.length) {
+          seatValues[i] = values[valueIndex++];
         }
       }
 
-      shuffle(availableSeatIndexes);
-
-      const seatValues = Array(TOTAL_SEATS).fill("");
-
-      const assignCount = Math.min(allNumbers.length, availableSeatIndexes.length);
-      for (let i = 0; i < assignCount; i++) {
-        seatValues[availableSeatIndexes[i]] = allNumbers[i];
-      }
-
-      const remaining = allNumbers.slice(assignCount);
+      // 남은 번호 표시 (자리 부족 시)
+      const remaining = values.slice(valueIndex);
       if (remaining.length > 0) {
         unplacedBox.style.display = "block";
         unplacedBox.textContent = "배치되지 못한 번호: " + remaining.join(", ");
       }
 
-      // 좌석 구성
+      // 좌석 출력
       const sections = [
         { el: left, count: 8 },
         { el: center, count: 10 },

@@ -130,30 +130,35 @@
         return;
       }
 
+      // 사용할 번호 목록
       let numbers = [];
       for (let i = start; i <= end; i++) {
         if (!exclude.includes(i)) numbers.push(i);
       }
 
+      // 총 X 표시된 좌석 제외한 가용 좌석 인덱스
       const freeIndices = seatStates.map((v, i) => v !== "X" ? i : null).filter(i => i !== null);
-      shuffle(numbers);
 
-      const assigned = numbers.slice(0, freeIndices.length);
-      const leftover = numbers.slice(freeIndices.length);
-      const blanksNeeded = freeIndices.length - assigned.length;
+      const assignedCount = Math.min(freeIndices.length, numbers.length);
+      const leftover = numbers.slice(assignedCount);
 
-      // 🎯 좌석 인덱스와 값(번호 또는 빈칸)을 함께 묶고, 전체를 무작위 섞기
-      const seatsToAssign = freeIndices.map((idx, i) => ({
-        seatIndex: idx,
-        value: i < assigned.length ? assigned[i] : ""
-      }));
-      shuffle(seatsToAssign);
+      const blanksNeeded = freeIndices.length - assignedCount;
 
-      const values = Array(TOTAL_SEATS).fill("");
-      seatsToAssign.forEach(({ seatIndex, value }) => {
-        values[seatIndex] = value;
-      });
+      // 전체 셀 구성 (번호 + 빈칸) → 무작위로 좌석에 매핑
+      const valuesToPlace = [...numbers.slice(0, assignedCount), ...Array(blanksNeeded).fill("")];
+      shuffle(valuesToPlace);
 
+      // 좌석 전체 값 배열 생성
+      const seatValues = Array(TOTAL_SEATS).fill("");
+
+      // X 표시 좌석은 그대로, 나머지에 무작위 값 배정
+      let valueIndex = 0;
+      for (let i = 0; i < TOTAL_SEATS; i++) {
+        if (seatStates[i] === "X") continue;
+        seatValues[i] = valuesToPlace[valueIndex++];
+      }
+
+      // 좌석 표시
       const sections = [
         { el: left, count: 8 },
         { el: center, count: 10 },
@@ -163,12 +168,12 @@
       let seatIndex = 0;
       sections.forEach(section => {
         for (let i = 0; i < section.count; i++) {
-          const value = values[seatIndex];
-          section.el.appendChild(createCell(seatIndex, value));
+          section.el.appendChild(createCell(seatIndex, seatValues[seatIndex]));
           seatIndex++;
         }
       });
 
+      // 남은 번호 표시
       if (leftover.length > 0) {
         unplacedBox.style.display = "block";
         unplacedBox.textContent = "배치되지 못한 번호: " + leftover.join(", ");

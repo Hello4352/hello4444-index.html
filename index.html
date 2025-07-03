@@ -75,7 +75,7 @@
 
   <script>
     const TOTAL_SEATS = 28;
-    const seatStates = Array(TOTAL_SEATS).fill(null); // 각 좌석의 상태 저장
+    const seatStates = Array(TOTAL_SEATS).fill(null); // 각 좌석 상태 저장
 
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -141,13 +141,16 @@
       const assigned = numbers.slice(0, freeIndices.length);
       const leftover = numbers.slice(freeIndices.length);
 
-      // 좌석에 값 넣기
+      const totalFree = freeIndices.length;
+      const blanksNeeded = totalFree - assigned.length;
+      const allValues = [...assigned, ...Array(blanksNeeded).fill("")];
+      shuffle(allValues); // 번호 + 빈칸 섞기
+
       const values = Array(TOTAL_SEATS).fill("");
       freeIndices.forEach((seatIndex, i) => {
-        values[seatIndex] = assigned[i];
+        values[seatIndex] = allValues[i];
       });
 
-      // 칸 구성
       const sections = [
         { el: left, count: 8 },
         { el: center, count: 10 },

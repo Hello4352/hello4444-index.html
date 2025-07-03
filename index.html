@@ -56,9 +56,7 @@
 </head>
 <body>
   <h2 style="text-align:center;">자리 뽑기</h2>
-  <p style="text-align:center; color: red; font-weight: bold;">
-    ※ X 표시된 칸에는 숫자가 절대 배정되지 않습니다.
-  </p>
+
   <div class="board">(칠판)</div>
 
   <div class="inputs">
@@ -79,7 +77,7 @@
       }
     }
 
-    let seatStates = []; // 좌석 상태: null or "X"
+    let seatStates = []; // "X"로 표시된 칸 정보
     let seatValues = [];
 
     function createCell(index, value) {
@@ -151,12 +149,11 @@
       unplacedBox.style.display = "none";
       unplacedBox.innerHTML = "";
 
-      // X 상태 유지
       if (seatStates.length !== totalSeats) {
         seatStates = new Array(totalSeats).fill(null);
       }
 
-      // 자동 X 설정 (총 18칸 중 빈칸만 랜덤 X, 기존 X 제외)
+      let autoXIndexes = [];
       if (totalNumbers <= 18) {
         const manualX = seatStates.map((v, i) => v === "X" ? i : -1).filter(i => i !== -1);
         let numAutoX = 18 - numbers.length - manualX.length;
@@ -165,12 +162,12 @@
           if (seatStates[i] !== "X") available.push(i);
         }
         shuffle(available);
-        for (let i = 0; i < numAutoX && i < available.length; i++) {
-          seatStates[available[i]] = "X";
+        autoXIndexes = available.slice(0, numAutoX);
+        for (let i = 0; i < autoXIndexes.length; i++) {
+          seatStates[autoXIndexes[i]] = "X";
         }
       }
 
-      // 배치 가능한 인덱스
       const availableIndexes = [];
       for (let i = 0; i < totalSeats; i++) {
         if (seatStates[i] !== "X") {
@@ -178,11 +175,16 @@
         }
       }
 
-      // 숫자 셔플 후 배정
       shuffle(numbers);
       seatValues = new Array(totalSeats).fill("");
       for (let i = 0; i < numbers.length && i < availableIndexes.length; i++) {
         seatValues[availableIndexes[i]] = numbers[i];
+      }
+
+      if (autoXIndexes.length > 0) {
+        for (const idx of autoXIndexes) {
+          seatStates[idx] = null;
+        }
       }
 
       for (let s = 0; s < 3; s++) {
@@ -202,7 +204,6 @@
         seatLayout.appendChild(section);
       }
 
-      // 자리 배치되지 못한 번호 계산
       const placedNumbers = seatValues.filter(v => typeof v === "number");
       const missing = numbers.filter(n => !placedNumbers.includes(n));
       if (missing.length > 0) {

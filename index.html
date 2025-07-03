@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>자리 뽑기 사이트</title>
+  <title>자리 뽑기</title>
   <style>
     body { font-family: sans-serif; }
     .layout {
@@ -75,7 +75,7 @@
 
   <script>
     const TOTAL_SEATS = 28;
-    const seatStates = Array(TOTAL_SEATS).fill(null); // "X" or null
+    const seatStates = Array(TOTAL_SEATS).fill(null); // 좌석별 상태 (X 또는 null)
 
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -130,41 +130,38 @@
         return;
       }
 
-      // 사용할 번호 목록
-      let numbers = [];
+      // 전체 번호 생성 후 셔플
+      let allNumbers = [];
       for (let i = start; i <= end; i++) {
-        if (!exclude.includes(i)) numbers.push(i);
+        allNumbers.push(i);
       }
+      shuffle(allNumbers);
 
-      // 총 X 표시된 좌석 제외한 가용 좌석 인덱스
-      const freeIndices = seatStates.map((v, i) => v !== "X" ? i : null).filter(i => i !== null);
+      // 제외된 번호는 빈칸으로 바꾸기
+      const values = allNumbers.map(n => exclude.includes(n) ? "" : n);
 
-      const assignedCount = Math.min(freeIndices.length, numbers.length);
-      const leftover = numbers.slice(assignedCount);
-
-      const blanksNeeded = freeIndices.length - assignedCount;
-
-      // 전체 셀 구성 (번호 + 빈칸) → 무작위로 좌석에 매핑
-      const valuesToPlace = [...numbers.slice(0, assignedCount), ...Array(blanksNeeded).fill("")];
-      shuffle(valuesToPlace);
-
-      // 좌석 전체 값 배열 생성
+      // X 표시된 좌석은 유지
       const seatValues = Array(TOTAL_SEATS).fill("");
-
-      // X 표시 좌석은 그대로, 나머지에 무작위 값 배정
       let valueIndex = 0;
       for (let i = 0; i < TOTAL_SEATS; i++) {
-        if (seatStates[i] === "X") continue;
-        seatValues[i] = valuesToPlace[valueIndex++];
+        if (seatStates[i] !== "X" && valueIndex < values.length) {
+          seatValues[i] = values[valueIndex++];
+        }
       }
 
-      // 좌석 표시
+      // 남은 번호 표시 (자리 부족 시)
+      const remaining = values.slice(valueIndex);
+      if (remaining.length > 0) {
+        unplacedBox.style.display = "block";
+        unplacedBox.textContent = "배치되지 못한 번호: " + remaining.join(", ");
+      }
+
+      // 좌석 출력
       const sections = [
         { el: left, count: 8 },
         { el: center, count: 10 },
         { el: right, count: 10 }
       ];
-
       let seatIndex = 0;
       sections.forEach(section => {
         for (let i = 0; i < section.count; i++) {
@@ -172,12 +169,6 @@
           seatIndex++;
         }
       });
-
-      // 남은 번호 표시
-      if (leftover.length > 0) {
-        unplacedBox.style.display = "block";
-        unplacedBox.textContent = "배치되지 못한 번호: " + leftover.join(", ");
-      }
     }
   </script>
 </body>

@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>자리 뽑기</title>
+  <title>자리 뽑기 - X 및 빈칸 처리</title>
   <style>
     body { font-family: sans-serif; }
     .layout {
@@ -10,13 +10,12 @@
       justify-content: center;
       gap: 40px;
       margin-top: 20px;
+      flex-wrap: wrap;
     }
     .section {
       display: grid;
       gap: 10px;
     }
-    .left { grid-template-columns: repeat(2, 60px); grid-template-rows: repeat(4, 60px); }
-    .center, .right { grid-template-columns: repeat(2, 60px); grid-template-rows: repeat(5, 60px); }
     .cell {
       background: #f0f0f0;
       border: 1px solid #aaa;
@@ -25,10 +24,11 @@
       justify-content: center;
       font-size: 18px;
       cursor: pointer;
+      width: 60px;
+      height: 60px;
+      user-select: none;
     }
-    .clicked {
-      background: #ffcccc;
-    }
+    .clicked { background: #ffcccc; }
     .board {
       width: 400px;
       margin: 0 auto;
@@ -56,6 +56,9 @@
 </head>
 <body>
   <h2 style="text-align:center;">자리 뽑기</h2>
+  <p style="text-align:center; color: red; font-weight: bold;">
+    ※ X 표시된 칸에는 숫자가 절대 배정되지 않습니다.
+  </p>
   <div class="board">(칠판)</div>
 
   <div class="inputs">
@@ -65,18 +68,10 @@
     <button onclick="generateSeats()">자리 생성</button>
   </div>
 
-  <div class="layout">
-    <div class="section left" id="leftSection"></div>
-    <div class="section center" id="centerSection"></div>
-    <div class="section right" id="rightSection"></div>
-  </div>
-
+  <div class="layout" id="seatLayout"></div>
   <div id="unplaced" class="unplaced-box" style="display:none;"></div>
 
   <script>
-    const TOTAL_SEATS = 28;
-    const seatStates = Array(TOTAL_SEATS).fill(null);
-
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -84,22 +79,27 @@
       }
     }
 
-    function createCell(seatIndex, value) {
+    let seatStates = []; // 좌석 상태: null or "X"
+    let seatValues = [];
+
+    function createCell(index, value) {
       const div = document.createElement("div");
       div.className = "cell";
-      div.textContent = value;
-      div.dataset.seatIndex = seatIndex;
+      div.dataset.seatIndex = index;
 
-      if (seatStates[seatIndex] === "X") {
+      if (seatStates[index] === "X") {
         div.textContent = "×";
         div.classList.add("clicked");
+      } else {
+        div.textContent = value === "" ? "" : value;
+        div.classList.remove("clicked");
       }
 
       div.addEventListener("click", () => {
         const idx = parseInt(div.dataset.seatIndex);
         if (seatStates[idx] === "X") {
           seatStates[idx] = null;
-          div.textContent = value;
+          div.textContent = seatValues[idx] === "" ? "" : seatValues[idx];
           div.classList.remove("clicked");
         } else {
           seatStates[idx] = "X";
@@ -114,70 +114,101 @@
     function generateSeats() {
       const start = parseInt(document.getElementById("startNum").value);
       const end = parseInt(document.getElementById("endNum").value);
-      const excludeRaw = document.getElementById("excludeNums").value;
-      const exclude = excludeRaw
+      const exclude = document.getElementById("excludeNums").value
         .split(",")
-        .map((s) => parseInt(s.trim()))
-        .filter((n) => !isNaN(n));
-
-      const left = document.getElementById("leftSection");
-      const center = document.getElementById("centerSection");
-      const right = document.getElementById("rightSection");
-      const unplacedBox = document.getElementById("unplaced");
-      left.innerHTML = center.innerHTML = right.innerHTML = "";
-      unplacedBox.style.display = "none";
-      unplacedBox.innerHTML = "";
+        .map(s => parseInt(s.trim()))
+        .filter(n => !isNaN(n));
 
       if (start >= end || start < 1 || end < 1) {
         alert("시작과 끝 번호를 정확히 입력해주세요.");
         return;
       }
 
-      // 1) 번호 배열 생성
-      let allNumbers = [];
+      const totalNumbers = end - start + 1;
+      let numbers = [];
       for (let i = start; i <= end; i++) {
-        allNumbers.push(i);
+        if (!exclude.includes(i)) numbers.push(i);
       }
 
-      // 2) 1차 셔플
-      shuffle(allNumbers);
+      const columns = 2;
+      let rows = 3;
+      let perSection = columns * rows;
+      let totalSeats = perSection * 3;
 
-      // 3) 제외번호 빈칸처리
-      let processed = allNumbers.map((n) => (exclude.includes(n) ? "" : n));
+      if (totalNumbers > 18) {
+        perSection = Math.ceil(totalNumbers / 3);
+        rows = Math.ceil(perSection / columns);
+        totalSeats = 3 * rows * columns;
+      } else {
+        totalSeats = 18;
+        rows = 3;
+        perSection = 6;
+      }
 
-      // 4) 2차 셔플 (빈칸과 숫자가 골고루 섞이도록)
-      shuffle(processed);
+      const seatLayout = document.getElementById("seatLayout");
+      const unplacedBox = document.getElementById("unplaced");
+      seatLayout.innerHTML = "";
+      unplacedBox.style.display = "none";
+      unplacedBox.innerHTML = "";
 
-      // 5) X표시 좌석 유지하면서 좌석에 값 넣기
-      let seatValues = Array(TOTAL_SEATS).fill("");
-      let valIndex = 0;
-      for (let i = 0; i < TOTAL_SEATS; i++) {
-        if (seatStates[i] !== "X" && valIndex < processed.length) {
-          seatValues[i] = processed[valIndex++];
+      // X 상태 유지
+      if (seatStates.length !== totalSeats) {
+        seatStates = new Array(totalSeats).fill(null);
+      }
+
+      // 자동 X 설정 (총 18칸 중 빈칸만 랜덤 X, 기존 X 제외)
+      if (totalNumbers <= 18) {
+        const manualX = seatStates.map((v, i) => v === "X" ? i : -1).filter(i => i !== -1);
+        let numAutoX = 18 - numbers.length - manualX.length;
+        const available = [];
+        for (let i = 0; i < 18; i++) {
+          if (seatStates[i] !== "X") available.push(i);
+        }
+        shuffle(available);
+        for (let i = 0; i < numAutoX && i < available.length; i++) {
+          seatStates[available[i]] = "X";
         }
       }
 
-      // 6) 남은 번호 표시
-      const leftover = processed.slice(valIndex).filter((v) => v !== "");
-      if (leftover.length > 0) {
+      // 배치 가능한 인덱스
+      const availableIndexes = [];
+      for (let i = 0; i < totalSeats; i++) {
+        if (seatStates[i] !== "X") {
+          availableIndexes.push(i);
+        }
+      }
+
+      // 숫자 셔플 후 배정
+      shuffle(numbers);
+      seatValues = new Array(totalSeats).fill("");
+      for (let i = 0; i < numbers.length && i < availableIndexes.length; i++) {
+        seatValues[availableIndexes[i]] = numbers[i];
+      }
+
+      for (let s = 0; s < 3; s++) {
+        const section = document.createElement("div");
+        section.className = "section";
+        section.style.gridTemplateColumns = `repeat(${columns}, 60px)`;
+        section.style.gridTemplateRows = `repeat(${rows}, 60px)`;
+
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < columns; col++) {
+            const localIndex = row * columns + col;
+            const globalIndex = s * columns * rows + localIndex;
+            const val = seatStates[globalIndex] === "X" ? "" : seatValues[globalIndex];
+            section.appendChild(createCell(globalIndex, val));
+          }
+        }
+        seatLayout.appendChild(section);
+      }
+
+      // 자리 배치되지 못한 번호 계산
+      const placedNumbers = seatValues.filter(v => typeof v === "number");
+      const missing = numbers.filter(n => !placedNumbers.includes(n));
+      if (missing.length > 0) {
         unplacedBox.style.display = "block";
-        unplacedBox.textContent = "배치되지 못한 번호: " + leftover.join(", ");
+        unplacedBox.textContent = "자리 배치되지 못한 번호: " + missing.join(", ");
       }
-
-      // 7) 화면 출력
-      const sections = [
-        { el: left, count: 8 },
-        { el: center, count: 10 },
-        { el: right, count: 10 },
-      ];
-
-      let seatIndex = 0;
-      sections.forEach((section) => {
-        for (let i = 0; i < section.count; i++) {
-          section.el.appendChild(createCell(seatIndex, seatValues[seatIndex]));
-          seatIndex++;
-        }
-      });
     }
   </script>
 </body>
